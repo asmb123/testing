@@ -19,7 +19,7 @@ IMPORTANT_FILENAMES = {
     "go.mod", "Cargo.toml", "pom.xml", "composer.json",
     "Dockerfile", "docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml",
     ".env.example", ".env.sample", "env.example", "Makefile",
-    "Jenkinsfile", ".gitlab-ci.yml",
+    "Jenkinsfile", ".gitlab-ci.yml","requirement.txt",
 }
 ENTRYPOINT_FILENAMES = {
     "main.py", "app.py", "server.py",
