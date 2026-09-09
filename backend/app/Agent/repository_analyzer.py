@@ -14,9 +14,9 @@ class RepositoryState(TypedDict, total=False):
     readme_imp: List[str]
 
 llm = ChatGroq(
-    model="llama-3.1-8b-instant",
+    model="openai/gpt-oss-120b",
     api_key=os.getenv("GROQ_API"),
-    temperature=0
+    temperature=0,
 )
 
 parser = JsonOutputParser()
@@ -51,8 +51,9 @@ CRITICAL FILES TO INCLUDE:
 STRICT EXCLUSIONS - NEVER INCLUDE:
 
 **Source Code & Deep Nested Files:**
-- Any .py, .js, .ts, .tsx, .jsx files inside: src/, app/, components/, pages/, lib/, utils/, core/
-- Files 3+ levels deep (e.g., backend/app/core/config.py) UNLESS it's Dockerfile or docker-compose
+- Do not select arbitrary source files from src/, app/, components/, pages/, lib/, utils/, or core/
+- A conventional application entry point (main.py, app.py, server.py, index.ts, etc.) is allowed, but select no more than one per service
+- Files 3+ levels deep (e.g., backend/app/core/config.py) are excluded UNLESS they are an allowed entry point, Dockerfile, or compose file
 - Example excludes: backend/app/Agent/repository_analyzer.py, frontend/src/components/ui/button.tsx
 - never include package-lock.json
 
@@ -77,7 +78,7 @@ INSTRUCTIONS:
 1. Scan the file paths provided above
 2. Select ONLY files matching critical criteria from the EXACT paths given
 3. Return paths EXACTLY as they appear (e.g., "backend/requirement.txt" not "requirements.txt")
-4. Maximum 8 files for single service, 12 for multi-service projects
+4. Maximum 8 files for a single service, 12 for a multi-service project
 5. Prioritize: dependencies → containers → environment files
 
 OUTPUT REQUIREMENTS:
