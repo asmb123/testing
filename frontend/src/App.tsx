@@ -90,6 +90,13 @@ export const App = () => {
     });
   }
 
+  function createPullRequest(repoUrl: string, readme: string) {
+    return authenticatedRequest<{ url: string; branch: string }>(API_ENDPOINTS.createPullRequest, {
+      repo_url: repoUrl,
+      readme,
+    });
+  }
+
   if (!authInitialized) {
     return (
       <main className="min-h-screen bg-black text-white flex items-center justify-center px-5">
@@ -112,7 +119,7 @@ export const App = () => {
               <LogOut className="mr-2 h-4 w-4" /> Sign out
             </Button>
           </header>
-          <ReadmeGenerator onGenerate={generateReadme} onReview={reviewReadme} />
+          <ReadmeGenerator onGenerate={generateReadme} onReview={reviewReadme} onCreatePullRequest={createPullRequest} />
         </section>
       </main>
     );

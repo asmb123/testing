@@ -9,6 +9,7 @@ import {
   GitPullRequest,
   Link2,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,12 @@ export type ReadmeResponse = {
 type ReadmeGeneratorProps = {
   onGenerate: (repoUrl: string) => Promise<ReadmeResponse>;
   onReview: (sessionId: string, satisfied: boolean, feedback: string) => Promise<ReadmeResponse>;
+  onCreatePullRequest: (repoUrl: string, readme: string) => Promise<PullRequestResponse>;
+};
+
+export type PullRequestResponse = {
+  url: string;
+  branch: string;
 };
 
 const markdownComponents = {
@@ -37,7 +44,7 @@ const markdownComponents = {
   code: ({ children }: { children?: React.ReactNode }) => <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{children}</code>,
 };
 
-export function ReadmeGenerator({ onGenerate, onReview }: ReadmeGeneratorProps) {
+export function ReadmeGenerator({ onGenerate, onReview, onCreatePullRequest }: ReadmeGeneratorProps) {
   const [linkInput, setLinkInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState("");
@@ -47,6 +54,7 @@ export function ReadmeGenerator({ onGenerate, onReview }: ReadmeGeneratorProps) 
   const [feedback, setFeedback] = useState("");
   const [awaitingReview, setAwaitingReview] = useState(false);
   const [status, setStatus] = useState("");
+  const [pullRequest, setPullRequest] = useState<PullRequestResponse | null>(null);
 
   async function handleSubmit() {
     if (!linkInput.trim() || loading) return;
@@ -56,6 +64,7 @@ export function ReadmeGenerator({ onGenerate, onReview }: ReadmeGeneratorProps) 
     setStatus("");
     setSessionId("");
     setAwaitingReview(false);
+    setPullRequest(null);
     try {
       const data = await onGenerate(linkInput.trim());
       setResult(data.readme);
@@ -95,9 +104,20 @@ export function ReadmeGenerator({ onGenerate, onReview }: ReadmeGeneratorProps) 
     window.setTimeout(() => setCopied(false), 2000);
   }
 
-  function handleOpenPR() {
-    const base = linkInput.trim().replace(/\/$/, "");
-    window.open(`${base}/compare`, "_blank", "noopener,noreferrer");
+  async function handleOpenPR() {
+    if (loading) return;
+    setLoading(true);
+    setStatus("Creating a branch and pull request...");
+    try {
+      const pullRequest = await onCreatePullRequest(linkInput.trim(), result);
+      setPullRequest(pullRequest);
+      window.open(pullRequest.url, "_blank", "noopener,noreferrer");
+      setStatus(`Pull request opened from ${pullRequest.branch}.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not open the pull request.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -119,11 +139,10 @@ export function ReadmeGenerator({ onGenerate, onReview }: ReadmeGeneratorProps) 
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 bg-muted/30">
               <div className="flex items-center gap-2.5">
                 <div className="flex gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-border/60" /><span className="w-2.5 h-2.5 rounded-full bg-border/60" /><span className="w-2.5 h-2.5 rounded-full bg-border/60" /></div>
-                <div className="flex items-center gap-1.5 text-muted-foreground"><FileText className="w-3.5 h-3.5" /><span className="text-xs font-mono">README.md</span></div>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" onClick={handleCopy} className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5">{copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}{copied ? "Copied!" : "Copy"}</Button>
-                <Button size="sm" onClick={handleOpenPR} className="h-7 px-2.5 text-xs gap-1.5 bg-green-600 hover:bg-green-700 text-white border-0"><GitPullRequest className="w-3.5 h-3.5" />Open PR</Button>
+                <Button size="sm" onClick={handleOpenPR} disabled={loading || Boolean(pullRequest)} className="h-7 px-2.5 text-xs gap-1.5 bg-green-600 hover:bg-green-700 text-white border-0"><GitPullRequest className="w-3.5 h-3.5" />{pullRequest ? "PR opened" : "Open PR"}</Button>
               </div>
             </div>
             <div className="flex border-b border-border/40 bg-muted/20 px-4">
@@ -132,6 +151,8 @@ export function ReadmeGenerator({ onGenerate, onReview }: ReadmeGeneratorProps) 
             {tab === "preview" && <div className="px-6 py-5 max-h-[560px] overflow-y-auto prose-sm"><ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{result}</ReactMarkdown></div>}
             {tab === "raw" && <pre className="px-6 py-5 text-xs font-mono leading-relaxed text-muted-foreground max-h-[560px] overflow-auto whitespace-pre-wrap break-words bg-muted/10">{result}</pre>}
           </div>
+
+          {pullRequest && <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm"><span className="text-green-700 dark:text-green-300">Pull request created successfully.</span><a href={pullRequest.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-medium text-green-700 hover:underline dark:text-green-300">View PR <ExternalLink className="h-3.5 w-3.5" /></a></div>}
 
           {sessionId && <div className="mt-4 rounded-lg border border-border/50 bg-card p-4 space-y-3">
             <div><p className="text-sm font-medium">{awaitingReview ? "Is this README satisfactory?" : "README approved"}</p><p className="text-xs text-muted-foreground mt-1">{status || "Review the generated documentation before you use it."}</p></div>

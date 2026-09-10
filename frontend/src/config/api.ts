@@ -12,6 +12,7 @@ export const API_ENDPOINTS = {
   authMe: "/auth/me",
   fetchRepository: "/fetchrepo",
   reviewReadme: "/review",
+  createPullRequest: "/pullrequest",
 } as const;
 
 export function apiUrl(endpoint: string): string {

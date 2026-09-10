@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from app.Agent.readme_workflow import generate_readme_graph
 from app.Agent.repository_analyzer import build_judge_graph
 from app.gitfetch.filerepo import file_system
-from app.gitfetch.git import fetch_github_repo
+from app.gitfetch.git import create_readme_pull_request, fetch_github_repo
 from app.gitfetch.storingdata import storingdata
 
 from app.auth import get_current_user
@@ -37,6 +37,11 @@ class ReviewRequest(BaseModel):
     session_id: str
     satisfied: bool
     feedback: str = Field(default="", max_length=4000)
+
+
+class PullRequestRequest(BaseModel):
+    repo_url: str
+    readme: str = Field(min_length=1, max_length=1_000_000)
 
 
 
@@ -105,3 +110,13 @@ def review_readme(data: ReviewRequest, _user: dict = Depends(get_current_user)):
         return review_response(result, data.session_id)
     except Exception as error:
         raise HTTPException(status_code=400, detail="Review session was not found or could not be resumed") from error
+
+
+@app.post("/pullrequest")
+def create_pull_request(
+    data: PullRequestRequest,
+    github_token: str = Header(..., alias="X-GitHub-Token"),
+    _user: dict = Depends(get_current_user),
+):
+    print(f"[PR] request received for {data.repo_url}; README length={len(data.readme)}", flush=True)
+    return create_readme_pull_request(data.repo_url, github_token, data.readme)
