@@ -1,16 +1,16 @@
 import os
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
 from app.Agent.readme_workflow import generate_readme_graph
-# from app.Agent.repository_analyzer import build_judge_graph
-# from app.gitfetch.filerepo import file_system
-# from app.gitfetch.git import fetch_github_repo
-# from app.gitfetch.storingdata import storingdata
+from app.Agent.repository_analyzer import build_judge_graph
+from app.gitfetch.filerepo import file_system
+from app.gitfetch.git import fetch_github_repo
+from app.gitfetch.storingdata import storingdata
 
 from app.auth import get_current_user
 
@@ -25,7 +25,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# judge_graph = build_judge_graph()
+judge_graph = build_judge_graph()
 readme_graph = generate_readme_graph()
 
 
@@ -71,7 +71,6 @@ def root():
 
 @app.get("/auth/me")
 def current_user(user: dict = Depends(get_current_user)):
-    print("authentication on testing phase")
     return {
         "uid": user["uid"],
         "email": user.get("email"),
@@ -80,20 +79,12 @@ def current_user(user: dict = Depends(get_current_user)):
     }
 
 @app.post("/fetchrepo")
-def fetch_repo(data: RepoRequest, _user: dict = Depends(get_current_user)):
+def fetch_repo(data: RepoRequest,github_token: str = Header(..., alias="X-GitHub-Token"), _user: dict = Depends(get_current_user),):
     try:
-        # fetch_github_repo(data.repo_url)
-        # repo = file_system(data.repo_url)
-        # judged_repo = judge_graph.invoke(repo)
-        # raw_data = storingdata(judged_repo)
-        raw_data = {
-            "raw_data": [
-                {
-                    "path": "backend/requirement.txt",
-                    "content": "fastapi\nuvicorn\nrequests\npython-dotenv\nPyGithub\nlanggraph\nlangchain\nlangchain-groq\npydantic\nredis\n",
-                }
-            ]
-        }
+        fetch_github_repo(data.repo_url, github_token)
+        repo = file_system(data.repo_url,github_token)
+        judged_repo = judge_graph.invoke(repo)
+        raw_data = storingdata(judged_repo, github_token)
 
         session_id = str(uuid4())
         result = readme_graph.invoke(raw_data, config(session_id))

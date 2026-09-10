@@ -1,3 +1,5 @@
 .env
+__pycache__/
+*.py[cod]
 tests1.py
 serviceAccountKey.json

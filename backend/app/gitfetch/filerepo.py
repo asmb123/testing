@@ -60,8 +60,7 @@ def file_system(repo_url: str, github_token: str):
     token_id = hashlib.sha256(github_token.encode()).hexdigest()[:16]
     key = f"repourl:v2:{token_id}:{repo_url}"
     cache_data = get_cache(key)
-    if cache_data:
-        print("returning the data from caches")
+    if cache_data is not None:
         return cache_data
 
     path = urlparse(repo_url).path.strip("/").split("/")

@@ -40,6 +40,7 @@ Previous reviewer feedback:
 {feedback}
 
 Create a useful, accurate README with these sections when the files support them:
+- Overview
 - Quick Start
 - Tech Stack
 - Project Structure
@@ -47,9 +48,10 @@ Create a useful, accurate README with these sections when the files support them
 - Running the Project
 - Key Dependencies
 - Contributing
-- Learning Roadmap
 
-If an existing README is provided, use it as the baseline. Improve its clarity, completeness, structure, and accuracy while preserving useful project-specific details. Use only details supported by the existing README or project files. If reviewer feedback is present, apply it without inventing project details.
+Keep the README well structured: begin with a concise project overview, place setup and usage instructions before reference material, and use clear Markdown headings. Include only sections supported by the existing README or project files.
+
+Never include Learning Roadmap, License, Coding Guidelines, or equivalent sections (for example, "Development Guidelines" or "Code Style"). When an existing README contains one of these sections, omit that section and its content while preserving the rest of its useful project-specific details. If reviewer feedback is present, apply it without inventing project details.
 
 Return only valid JSON:
 {{
