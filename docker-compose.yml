@@ -1,7 +1,6 @@
 services:
   backend:
     build: ./backend
-    container_name: doc-agent
     ports:
       - "8081:8081"
     env_file:
@@ -11,14 +10,19 @@ services:
         condition: service_healthy
     environment:
       REDIS_URL: redis://redis:6379/0
+      FRONTEND_URL: http://localhost:3000
     volumes:
       - ./serviceAccountKey.json:/app/app/serviceAccountKey.json:ro
-       
-    
+
+  doc-ui:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
 
   redis:
     image: redis:7-alpine
-    container_name: redis-agent
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

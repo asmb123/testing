@@ -9,10 +9,10 @@ import {
 } from "firebase/auth";
 
 import { auth } from "@/lib/firebase";
+import { API_ENDPOINTS, apiUrl } from "@/config/api";
 import { Button } from "@/components/ui/button";
 import { ReadmeGenerator, type ReadmeResponse } from "@/components/ReadmeGenerator";
 
-const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8081";
 const githubTokenStorageKey = "docpilot.githubAccessToken";
 
 
@@ -62,7 +62,7 @@ export const App = () => {
       throw new Error("Please sign in with GitHub to use the README generator.");
     }
     const firebaseToken = await user.getIdToken();
-    const response = await fetch(`${apiUrl}${path}`, {
+    const response = await fetch(apiUrl(path), {
       method: "POST",
       headers: {
         Authorization: `Bearer ${firebaseToken}`,
@@ -79,11 +79,11 @@ export const App = () => {
   }
 
   function generateReadme(repoUrl: string) {
-    return authenticatedRequest<ReadmeResponse>("/fetchrepo", { repo_url: repoUrl });
+    return authenticatedRequest<ReadmeResponse>(API_ENDPOINTS.fetchRepository, { repo_url: repoUrl });
   }
 
   function reviewReadme(sessionId: string, satisfied: boolean, feedback: string) {
-    return authenticatedRequest<ReadmeResponse>("/review", {
+    return authenticatedRequest<ReadmeResponse>(API_ENDPOINTS.reviewReadme, {
       session_id: sessionId,
       satisfied,
       feedback,
