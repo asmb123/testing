@@ -57,7 +57,7 @@ export function ReadmeGenerator({ onGenerate, onReview, onCreatePullRequest }: R
   const [pullRequest, setPullRequest] = useState<PullRequestResponse | null>(null);
 
   async function handleSubmit() {
-    if (!linkInput.trim() || loading) return;
+    if (!linkInput.trim() || loading || awaitingReview) return;
     setLoading(true);
     setResult("");
     setFeedback("");
@@ -127,8 +127,8 @@ export function ReadmeGenerator({ onGenerate, onReview, onCreatePullRequest }: R
         <div className="relative flex items-center gap-2 bg-card border border-border/50 rounded-lg p-2">
           <Link2 className="w-5 h-5 text-muted-foreground ml-2 shrink-0" />
           <Input type="url" placeholder="https://github.com/username/repository" value={linkInput} onChange={(event) => setLinkInput(event.target.value)} onKeyDown={(event) => event.key === "Enter" && handleSubmit()} className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none" />
-          <Button onClick={handleSubmit} disabled={loading || !linkInput.trim()} size="sm" className="mr-1 shrink-0">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Generate"}
+          <Button onClick={handleSubmit} disabled={loading || awaitingReview || !linkInput.trim()} size="sm" className="mr-1 shrink-0">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : awaitingReview ? "Review in progress" : "Generate"}
           </Button>
         </div>
       </div>
