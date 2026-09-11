@@ -105,7 +105,7 @@ export function ReadmeGenerator({ onGenerate, onReview, onCreatePullRequest }: R
   }
 
   async function handleOpenPR() {
-    if (loading) return;
+    if (loading || awaitingReview) return;
     setLoading(true);
     setStatus("Creating a branch and pull request...");
     try {
@@ -142,7 +142,7 @@ export function ReadmeGenerator({ onGenerate, onReview, onCreatePullRequest }: R
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" onClick={handleCopy} className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5">{copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}{copied ? "Copied!" : "Copy"}</Button>
-                <Button size="sm" onClick={handleOpenPR} disabled={loading || Boolean(pullRequest)} className="h-7 px-2.5 text-xs gap-1.5 bg-green-600 hover:bg-green-700 text-white border-0"><GitPullRequest className="w-3.5 h-3.5" />{pullRequest ? "PR opened" : "Open PR"}</Button>
+                {!awaitingReview && <Button size="sm" onClick={handleOpenPR} disabled={loading || Boolean(pullRequest)} className="h-7 px-2.5 text-xs gap-1.5 bg-green-600 hover:bg-green-700 text-white border-0"><GitPullRequest className="w-3.5 h-3.5" />{pullRequest ? "PR opened" : "Open PR"}</Button>}
               </div>
             </div>
             <div className="flex border-b border-border/40 bg-muted/20 px-4">
