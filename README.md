@@ -1,101 +1,26 @@
-# DocPilot
+# Overview
 
-DocPilot writes your README for you and lets you actually review it before it touches your repo.
+**DocPilot** is an AI‑powered tool that generates a polished `README.md` for any GitHub repository. It analyses the codebase, selects the most relevant files, and uses a large language model to draft a README that you can review and edit before it is committed. The service includes a React frontend, a FastAPI backend, and uses Redis for session state.
 
-Point it at a GitHub repository and it inspects the codebase, figures out which files actually matter for documentation, drafts a README with an LLM, and hands the draft back for you to approve or send back with feedback. Once you're happy with it, DocPilot can open a pull request with the result.
+---
 
+# Quick Start
 
-## How it works
-
-```mermaid
-flowchart TD
-	A[Sign in with GitHub] --> B[Enter repository URL]
-	B --> C[Fetch repository metadata]
-	C --> D[First LLM: select useful file paths]
-	D --> E[Read selected file contents]
-	E --> F[Second LLM: generate README]
-	F --> G[Review draft]
-	G -->|Needs changes| H[Send feedback]
-	H --> F
-	G -->|Approved| I[Copy README]
-	G -->|Approved| J[Choose Open PR]
-	J --> K[Create branch and pull request]
-```
-
-The frontend kicks things off with `POST /fetchrepo`. On the backend, that lists and filters the repo's file paths, then sends the shortlist to a first LLM pass (`judge_graph`) whose only job is picking out files worth reading configs, dependency manifests, entry points, that kind of thing. `storingdata` then reads the contents of those files, and a second LLM pass (`readme_graph`) turns them into the actual draft.
-
-The draft doesn't get committed anywhere yet  it pauses for review. `POST /review` either sends it back through the revision loop with your feedback or marks the session complete. Once you're happy, you can copy the Markdown directly or hit `POST /pullrequest` to have DocPilot open a branch and PR with it.
-
-## What it does
-
-- Grounds the README in the repo's actual config and dependency files, instead of guessing
-- Keeps what's useful from an existing README and rewrites the parts that don't hold up
-- Human-in-the-loop review — nothing ships without your sign-off, and you can iterate with plain feedback
-- Markdown preview alongside the raw source, so you can check both before approving
-- One click to copy the result, or open a pull request straight from the UI
-- Firebase auth up front, GitHub token for repo access
-
-## Architecture
-
-```mermaid
-flowchart LR
-    UI[React frontend] --> API[FastAPI backend]
-    API --> Judge[File selection graph]
-    Judge --> Readme[README generation graph]
-    Readme --> UI
-    API --> GitHub[GitHub API]
-    API --> Redis[Redis]
-```
-
-Backend lives in `backend/app`, frontend in `frontend/src`. Review sessions are held in memory via LangGraph's checkpointer for as long as the API process stays up — so a restart mid-review will lose an in-progress session, worth knowing if you're testing this locally.
-
-## Before you start
-
-You'll need:
-
-- Docker and Docker Compose
-- A Firebase project with authentication turned on
-- A Groq API key
-- A Firebase service-account key for the backend
-- A GitHub personal access token that can read the target repo, and create branches/PRs if you want to use that feature
-
-## Configuration
-
-Create `backend/app/.env`:
-
-```env
-GROQ_API=your_groq_api_key
-```
-
-Drop your Firebase service-account JSON at `serviceAccountKey.json` in the repo root — Compose mounts it into the backend container at `/app/app/serviceAccountKey.json`.
-
-The frontend defaults to `http://localhost:8081` for the API. If you're pointing it somewhere else, create `frontend/.env` before building:
-
-```env
-VITE_API_URL=http://localhost:8081
-```
-
-Keep API keys, Firebase credentials, and personal access tokens out of version control.
-
-## Running it with Docker Compose
-
+## Using Docker Compose (recommended)
 ```bash
+# Build and start all services
 docker compose up --build
 ```
+- Frontend UI: <http://localhost:3000>
+- Backend API: <http://localhost:8081> (interactive docs at `/docs`)
 
-Frontend: [http://localhost:3000](http://localhost:3000)
-Backend: [http://localhost:8081](http://localhost:8081) (interactive docs at `/docs`)
-
+To stop the stack:
 ```bash
 docker compose down
 ```
 
-Redis data persists in the `redis_data` Compose volume between runs.
-
-## Running it locally without Docker
-
+## Running Locally (without Docker)
 ### Backend
-
 ```bash
 cd backend
 python -m venv .venv
@@ -103,81 +28,164 @@ source .venv/bin/activate
 pip install -r requirement.txt
 uvicorn app.main:app --reload --port 8081
 ```
-
-Needs `backend/app/.env` and the Firebase service-account file mentioned above.
-
 ### Frontend
-
 ```bash
 cd frontend
 npm ci
-npm run dev
+npm run dev   # Vite dev server (http://localhost:5173 by default)
+```
+Make sure the frontend points to the backend API (see **Configuration**).
+
+---
+
+# Tech Stack
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 19, Vite, TypeScript, Tailwind CSS, Radix UI, Firebase (auth) |
+| **Backend** | FastAPI, Uvicorn, Python 3.11, LangChain, LangGraph, PyGithub, Redis |
+| **Data Store** | Redis (in‑memory, persisted via Docker volume) |
+| **Containerisation** | Docker & Docker Compose |
+| **CI/CD** | (not included – can be added by the user) |
+
+---
+
+# Project Structure
+```
+.
+├─ backend/                     # FastAPI service
+│   ├─ app/                     # Application code
+│   │   ├─ Agent/
+│   │   │   ├─ readme_workflow.py
+│   │   │   └─ repository_analyzer.py
+│   │   ├─ gitfetch/            # GitHub fetch & PR helpers
+│   │   ├─ core/                # Shared services (e.g., Redis client)
+│   │   └─ main.py              # FastAPI entry point
+│   ├─ Dockerfile
+│   └─ requirement.txt
+├─ frontend/                    # React UI
+│   ├─ src/                     # Source code (components, routes, etc.)
+│   ├─ .env.example
+│   ├─ Dockerfile
+│   └─ package.json
+├─ docker-compose.yml          # Orchestrates backend, frontend, Redis
+└─ serviceAccountKey.json      # Firebase service‑account (mounted at runtime)
 ```
 
-Vite serves this at [http://localhost:5173](http://localhost:5173) by default. Set `VITE_API_URL=http://localhost:8081` if your API isn't at its default address.
+---
 
-Other useful commands:
+# Configuration
 
+## Backend (`backend/app/.env`)
+```env
+GROQ_API=your_groq_api_key   # Required for LangChain‑Groq calls
+```
+Place the file at `backend/app/.env`. The backend also reads the Firebase service‑account JSON that should be located at the repository root as `serviceAccountKey.json`. Docker Compose mounts this file into the container at `/app/app/serviceAccountKey.json` (read‑only).
+
+## Frontend (`frontend/.env`)
+Create a copy of `frontend/.env.example` and adjust the values as needed:
+```env
+VITE_API_URL=http://localhost:8081   # URL of the backend API
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_APP_ID=
+```
+When building with Docker, the environment file is baked into the image; for local development, the `.env` file is read by Vite.
+
+## Docker Compose defaults
+- Backend port: **8081** (exposed as `localhost:8081`)
+- Frontend port: **3000** (exposed as `localhost:3000`)
+- Redis runs on the default port inside the network (`redis://redis:6379/0`).
+
+---
+
+# Running the Project
+
+## Docker Compose (full stack)
 ```bash
-npm run build
-npm run lint
+# Start services (backend, frontend, redis)
+docker compose up --build
 ```
+- Access the UI at `http://localhost:3000`.
+- API docs are available at `http://localhost:8081/docs`.
 
-## API
+## Local Development
+1. **Backend** – follow the steps in *Quick Start*.
+2. **Frontend** – follow the steps in *Quick Start*.
+3. Ensure the frontend `VITE_API_URL` points to the backend address.
+4. Redis is optional for local testing; the backend will start without it but session persistence will be lost on restart.
 
-Every endpoint expects a Firebase bearer token. Repository related endpoints also need an `X-GitHub-Token` header.
+---
 
-| Method | Endpoint | What it does |
-| --- | --- | --- |
-| `GET` | `/` | Basic health check |
-| `POST` | `/fetchrepo` | Fetch a repo and generate the first README draft |
-| `POST` | `/review` | Approve the draft, or send it back with feedback |
-| `POST` | `/pullrequest` | Open a branch + PR with the README |
+# Key Dependencies
 
-Example body for `/fetchrepo`:
+## Backend (`backend/requirement.txt`)
+- **fastapi** – API framework
+- **uvicorn** – ASGI server
+- **requests** – HTTP client
+- **python-dotenv** – `.env` file loading
+- **PyGithub** – GitHub API interactions
+- **langgraph** – Graph‑based LLM workflow orchestration
+- **langchain** – LLM utilities
+- **langchain-groq** – Groq provider for LangChain
+- **pydantic** – Data validation
+- **redis** – Redis client
+- **firebase-admin** – Firebase authentication & admin SDK
 
+## Frontend (`frontend/package.json`)
+- **react**, **react-dom** – UI library
+- **vite** – Build tool & dev server
+- **typescript** – Type safety
+- **tailwindcss** – Utility‑first CSS framework
+- **@radix-ui/react-dropdown-menu**, **@radix-ui/react-slot** – Accessible UI primitives
+- **firebase** – Front‑end Firebase SDK (auth)
+- **lucide-react**, **react-markdown**, **remark-gfm** – Icons & markdown rendering
+- **eslint**, **eslint-plugin-react-hooks**, **eslint-plugin-react-refresh** – Linting
+- Additional dev tools for testing and building.
+
+---
+
+# Contributing
+
+Contributions are welcome! Typical areas where help is valuable:
+- Extending file‑selection logic (`repository_analyzer.py`) to support more build systems.
+- Refining LLM prompts while keeping generated statements grounded in the repository.
+- Adding unit/integration tests for the backend workflow and API validation.
+- Improving error handling and UI feedback on the frontend.
+- Enhancing the GitHub PR creation flow to avoid leaking credentials.
+
+## How to submit a PR
+1. Fork the repository and create a feature branch.
+2. Keep changes focused and atomic.
+3. Do **not** commit any secrets (API keys, Firebase credentials, etc.).
+4. Update documentation if you modify the public interface.
+5. Run the test suite (if present) and ensure the Docker build still succeeds.
+6. Open a pull request with a clear description of the problem, your approach, and verification steps.
+
+---
+
+# API Reference
+
+All endpoints require a Firebase bearer token. Repository‑related calls also need an `X-GitHub-Token` header.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | Health check |
+| `POST` | `/fetchrepo` | Provide a GitHub repo URL; returns the first README draft and a `session_id`. |
+| `POST` | `/review` | Approve the draft or send feedback for revision (requires `session_id`). |
+| `POST` | `/pullrequest` | Create a branch and PR with the final README. |
+
+**Example request body for `/fetchrepo`**
 ```json
 {
-	"repo_url": "https://github.com/owner/repository"
+  "repo_url": "https://github.com/owner/repository"
 }
 ```
+The response includes `status`, `session_id`, `readme`, and `revision`. Keep the `session_id` for subsequent `/review` calls.
 
-The response comes back with `status`, `session_id`, `readme`, and `revision`. Hang on to `session_id` — you'll need it for `/review` while the draft is pending.
+---
 
-## Contributing
-
-PRs welcome, especially anything that makes the generated docs more accurate, easier to review, or safer to run against a real repo.
-
-Good places to dig in:
-
-- Support more dependency/build file formats in `repository_analyzer.py`
-- Tighten the prompts, but keep generated claims grounded in what's actually in the repo
-- Tests around file selection, workflow transitions, API validation, and auth failures
-- Better error states and loading feedback on the frontend
-- Improvements to the GitHub branch/PR flow that don't leak credentials
-
-Before opening a PR:
-
-1. Work off a focused branch
-2. Keep the change small and explain the actual benefit, not just what changed
-3. Never log tokens, service-account contents, or generated data from private repos
-4. Update docs and example config if interfaces changed
-5. Describe the problem, your approach, and how you verified it in the PR description
-
-## Project layout
-
-```text
-backend/
-	app/
-		Agent/
-			readme_workflow.py       # Draft, review, and revision graph
-			repository_analyzer.py   # Selects documentation-relevant files
-		gitfetch/                  # Repository fetching and pull request helpers
-		core/                      # Shared backend services such as Redis
-		main.py                    # FastAPI application and API routes
-frontend/
-	src/
-		components/                # React UI and README review flow
-		config/api.ts              # API base URL and endpoint definitions
-docker-compose.yml             # Backend, frontend, and Redis services
-```
+# Additional Notes
+- Redis data is persisted in the Docker volume `redis_data`; removing the volume will clear session history.
+- The frontend uses a SPA fallback configuration in Nginx so that direct navigation works.
+- Ensure your Firebase project has Authentication enabled and that the service‑account JSON has the necessary permissions.
